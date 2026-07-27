@@ -1,0 +1,24 @@
+{
+  "name": "site-survey-insight",
+  "version": "1.0.0",
+  "description": "",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "serve ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Almamarob/Site-Survey-Insight.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Almamarob/Site-Survey-Insight/issues"
+  },
+  "homepage": "https://github.com/Almamarob/Site-Survey-Insight#readme",
+  "devDependencies": {
+    "serve": "^14.2.6"
+  }
+}

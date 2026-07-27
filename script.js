@@ -410,11 +410,11 @@ function renderGettingStarted() {
 
   el.innerHTML = `
     <div class="gs-hero">
+      <p class="gs-tagline">Fire Safety · Inspection Monitoring</p>
       <div class="gs-brand">
         <img src="images/logo_icon_transparent.png" alt="Site Insight" class="gs-logo">
         <h1>Site Insight</h1>
       </div>
-      <p class="gs-tagline">Inspection Monitoring Platform</p>
       <div class="gs-cards">
         <div class="gs-card" onclick="newInspection()">
           <div class="gs-icon">✨</div>
