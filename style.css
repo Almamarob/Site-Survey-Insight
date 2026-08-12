@@ -189,6 +189,97 @@ body {
 }
 
 /* ══════════════════════════════════════════════
+   SI FLOOR ITEMS IN SIDEBAR
+══════════════════════════════════════════════ */
+.nav-floor-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px 7px 18px; cursor: pointer;
+  color: rgba(216,176,96,0.55); font-size: 12px; font-weight: 600;
+  border-left: 2px solid transparent;
+  transition: color 0.12s, background 0.12s; user-select: none;
+}
+.nav-floor-item:hover { color: rgba(216,176,96,0.90); background: rgba(196,144,48,0.06); }
+.nav-floor-item.active {
+  color: var(--accent-2); border-left-color: var(--accent);
+  background: rgba(196,144,48,0.12);
+}
+.nav-floor-item.saved .nav-floor-dot { color: var(--accent); }
+.nav-floor-dot { font-size: 11px; color: rgba(196,144,48,0.28); flex-shrink: 0; }
+.nav-floor-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-floor-progress {
+  font-size: 9.5px; font-weight: 700; background: rgba(196,144,48,0.14);
+  color: var(--accent-2); border-radius: 10px; padding: 1px 6px; flex-shrink: 0;
+}
+.nav-floor-unsaved {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
+  color: rgba(196,144,48,0.30); flex-shrink: 0;
+}
+.nav-check-item { padding-left: 30px; }
+
+/* ══════════════════════════════════════════════
+   SI STEP INDICATOR
+══════════════════════════════════════════════ */
+.si-step-indicator {
+  display: inline-block; font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); opacity: 0.75; margin-bottom: 5px;
+}
+
+/* ══════════════════════════════════════════════
+   SI STEP 2 — CHECK SELECTION GRID
+══════════════════════════════════════════════ */
+.si-check-sel-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px; margin-bottom: 24px;
+}
+.si-check-cat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.si-check-cat-header {
+  background: var(--night); color: var(--accent-2);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 8px 10px;
+}
+.si-check-sel-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.12s;
+  font-size: 12px; color: var(--text-2); line-height: 1.4;
+}
+.si-check-sel-item:last-child { border-bottom: none; }
+.si-check-sel-item:hover { background: rgba(196,144,48,0.05); }
+.si-check-sel-item.selected { background: rgba(196,144,48,0.08); }
+.si-check-sel-item input[type=checkbox] { accent-color: var(--accent); margin-top: 2px; flex-shrink: 0; }
+.si-check-done-badge {
+  margin-left: auto; font-size: 10px; font-weight: 700; color: var(--success); flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════
+   SI CHECKS OVERVIEW (Step 1 — after save)
+══════════════════════════════════════════════ */
+.si-checks-overview { display: flex; flex-direction: column; gap: 6px; }
+.si-check-ov-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; transition: border-color 0.12s, background 0.12s;
+}
+.si-check-ov-item:hover { border-color: var(--accent); background: var(--accent-dim); }
+.si-check-cat-tag {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); opacity: 0.7; white-space: nowrap; flex-shrink: 0;
+}
+.si-check-ov-label { flex: 1; font-size: 13px; font-weight: 500; color: var(--text-1); }
+.si-check-ov-status {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--text-3); background: var(--border); border-radius: 10px;
+  padding: 2px 9px; flex-shrink: 0;
+}
+.si-check-ov-status.done { color: var(--success); background: rgba(10,114,90,0.1); }
+
+/* ══════════════════════════════════════════════
    NON PRESENTE TOGGLE
 ══════════════════════════════════════════════ */
 .non-presente-bar {
@@ -426,6 +517,79 @@ td input:focus { border-color: var(--accent); background: white; }
 }
 .floor-tab:not(.active) .floor-tab-del { color: var(--text-3); }
 .floor-tab-del:hover { background: var(--danger); color: white !important; }
+
+/* ══════════════════════════════════════════════
+   SI BRANCH TABS
+══════════════════════════════════════════════ */
+.si-tab-bar {
+  display: flex; gap: 2px; margin-bottom: 20px;
+  border-bottom: 2px solid var(--border);
+}
+.si-tab {
+  padding: 9px 18px; font-size: 12.5px; font-weight: 500;
+  color: var(--text-3); background: none; border: none;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  cursor: pointer; font-family: inherit; transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.si-tab:hover { color: var(--text-1); }
+.si-tab.active {
+  color: var(--accent); border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════
+   COMPLIANCE VERIFICATION GRID
+══════════════════════════════════════════════ */
+.compliance-guide {
+  background: var(--accent-dim); border: 1px solid rgba(196,144,48,0.18);
+  border-radius: var(--radius); padding: 12px 16px;
+  font-size: 12px; color: var(--text-2); line-height: 1.7; margin-bottom: 14px;
+}
+.compliance-sub-label {
+  font-size: 12px; font-weight: 600; color: var(--text-3);
+  letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px;
+}
+.compliance-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px; margin-bottom: 24px;
+}
+.compliance-col {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.compliance-col-header {
+  background: var(--night); color: var(--accent-2);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 8px 10px;
+}
+.compliance-item {
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+.compliance-item:last-child { border-bottom: none; }
+.compliance-item.enabled { background: rgba(196,144,48,0.05); }
+.compliance-check {
+  display: flex; align-items: flex-start; gap: 7px; cursor: pointer;
+  font-size: 12px; color: var(--text-2); line-height: 1.4;
+}
+.compliance-check input[type=checkbox] { accent-color: var(--accent); margin-top: 2px; flex-shrink: 0; }
+.compliance-item-label { font-weight: 500; }
+.compliance-status-sel {
+  width: 100%; margin-top: 6px; font-size: 11px;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 4px 6px; background: var(--card); color: var(--text-1);
+  font-family: inherit;
+}
+.compliance-status-sel.cs-ok  { border-color: var(--success); color: var(--success); }
+.compliance-status-sel.cs-ko  { border-color: var(--danger);  color: var(--danger);  }
+.compliance-status-sel.cs-mid { border-color: var(--warning); color: var(--warning); }
+.compliance-notes {
+  width: 100%; margin-top: 5px; font-size: 11px; min-height: 48px; resize: vertical;
+  border: 1px solid var(--border); border-radius: 4px; padding: 5px 7px;
+  font-family: inherit; color: var(--text-1); background: var(--card);
+}
 
 /* ══════════════════════════════════════════════
    FLOORPLAN SECTION

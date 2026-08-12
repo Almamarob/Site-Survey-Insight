@@ -195,12 +195,10 @@
                                     onchange="updateNumeroVerbale()"
                                 >
                                     <option value="">-- Select --</option>
-                                    <option>Initial Inspection</option>
-                                    <option>Periodic Inspection</option>
-                                    <option>Extraordinary Inspection</option>
-                                    <option>
-                                        Post-intervention Verification
-                                    </option>
+                                    <option>Initial</option>
+                                    <option>Periodic</option>
+                                    <option>Extraordinary</option>
+                                    <option>Post-Intervention</option>
                                     <option>System Commissioning</option>
                                 </select>
                             </div>
@@ -300,7 +298,10 @@
                         </div>
                         <div class="form-row cols-1">
                             <div class="form-group">
-                                <label>Documentation Reviewed</label>
+                                <label style="display:flex;justify-content:space-between;align-items:center">
+                                  Documentation Reviewed
+                                  <button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="document.getElementById('ov-docs').value=autoDocumentation()">↺ Auto-fill from sections</button>
+                                </label>
                                 <textarea
                                     id="ov-docs"
                                     placeholder="List the documentation reviewed (certificates, floor plans, fire authority records, etc.)..."
