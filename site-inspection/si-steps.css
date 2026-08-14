@@ -1,0 +1,242 @@
+/* ══════════════════════════════════════════════
+   SI STEP INDICATOR
+══════════════════════════════════════════════ */
+.si-step-indicator {
+  display: inline-block; font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); opacity: 0.75; margin-bottom: 5px;
+}
+
+/* ══════════════════════════════════════════════
+   CHECK PLAN PANEL (Step 3 — floor plan + pins)
+══════════════════════════════════════════════ */
+.cp-panel {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: 18px; overflow: hidden;
+}
+.cp-header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.15);
+}
+.cp-title { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; flex-shrink: 0; }
+.cp-filters { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.cp-filter-btn {
+  font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-2);
+  cursor: pointer; transition: all 0.12s; white-space: nowrap;
+}
+.cp-filter-btn:hover { opacity: 0.85; }
+.cp-filter-btn.active { font-weight: 700; }
+
+/* Map */
+.cp-map-wrap {
+  position: relative; overflow: hidden; max-height: 360px;
+  background: #0a1520; cursor: default;
+}
+.cp-map-img { width: 100%; display: block; user-select: none; }
+.cp-pins-layer { position: absolute; inset: 0; pointer-events: none; }
+.cp-drop-overlay { position: absolute; inset: 0; }
+
+/* Pins on the map */
+.cp-pin {
+  position: absolute; transform: translate(-50%,-50%);
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid #fff; display: flex; align-items: center; justify-content: center;
+  overflow: visible;
+  cursor: pointer; pointer-events: all;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5); transition: transform 0.1s;
+  font-size: 9px; font-weight: 800; color: #fff; line-height: 1;
+}
+.cp-pin:hover { transform: translate(-50%,-50%) scale(1.2); }
+.cp-pin-pending {
+  background: rgba(255,255,255,0.25) !important; border: 2px dashed #fff !important;
+  animation: cp-pulse 1s infinite;
+}
+@keyframes cp-pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Legend */
+.cp-legend {
+  display: flex; gap: 12px; flex-wrap: wrap; padding: 6px 14px;
+  border-top: 1px solid var(--border); background: rgba(0,0,0,0.1);
+}
+.cp-legend-item { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 4px; }
+
+/* Pending pin form */
+.cp-pending-form {
+  border-top: 1px solid var(--border); padding: 12px 14px;
+  background: rgba(196,144,48,0.07); display: flex; flex-direction: column; gap: 8px;
+}
+.cp-pending-title { font-size: 12px; font-weight: 700; color: var(--accent); }
+.cp-pending-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cp-pending-label { font-size: 12px; color: var(--text-2); flex-shrink: 0; }
+.cp-pending-input { flex: 1; min-width: 160px; font-size: 13px; padding: 5px 8px;
+  background: var(--input-bg); border: 1px solid var(--border); border-radius: 5px; color: var(--text-1); }
+.cp-pending-select { font-size: 12px; padding: 4px 7px; background: var(--input-bg);
+  border: 1px solid var(--border); border-radius: 5px; color: var(--text-1); }
+
+/* Pin list */
+.cp-pin-list { padding: 8px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+.cp-empty { font-size: 12px; color: var(--text-3); padding: 6px 0; }
+.cp-pin-item {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 7px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+}
+.cp-pin-item-header { display: flex; align-items: center; gap: 8px; }
+.cp-pin-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cp-pin-idx { font-size: 11px; font-weight: 700; color: var(--text-2); flex-shrink: 0; }
+.cp-pin-note-input {
+  flex: 1; font-size: 12px; padding: 3px 7px; background: var(--input-bg);
+  border: 1px solid var(--border); border-radius: 4px; color: var(--text-1);
+}
+.cp-pin-item-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cp-pin-check-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  border: 1px solid; white-space: nowrap;
+}
+.cp-pin-add-sel, .cp-pin-photo-sel {
+  font-size: 11px; padding: 3px 7px; background: var(--input-bg);
+  border: 1px solid var(--border); border-radius: 4px; color: var(--text-2);
+}
+/* Photo tag floating below pin dot on the map */
+.cp-pin-photo-tag {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  margin-top: 3px; background: rgba(0,0,0,0.80); color: #fff;
+  font-size: 8px; font-weight: 700; white-space: nowrap;
+  padding: 1px 5px; border-radius: 3px; pointer-events: none;
+  letter-spacing: 0.02em;
+}
+
+/* Pin list photo section */
+.cp-pin-photo { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.cp-pin-thumb { width: 60px; height: 42px; object-fit: cover; border-radius: 5px; border: 1px solid var(--border); flex-shrink: 0; }
+.cp-pin-photo-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.cp-pin-photo-code { font-size: 12px; font-weight: 700; color: var(--text-1); }
+.cp-pin-photo-note-label { font-size: 11px; color: var(--text-3); }
+.cp-pin-photo-from { font-size: 10px; font-weight: 600; color: var(--accent); }
+.cp-pin-photo-label { font-size: 11px; color: var(--text-2); flex: 1; }
+
+/* Linked photos (cross-referenced) */
+.linked-photos-section { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.linked-photos-title { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: 0.05em; margin-bottom: 8px; }
+.linked-photo-card {
+  border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
+  margin-bottom: 8px; background: rgba(255,255,255,0.02);
+}
+.linked-photo-header {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  background: rgba(0,0,0,0.15); flex-wrap: wrap;
+}
+.linked-from-badge {
+  font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 10px;
+  border: 1px solid; white-space: nowrap;
+}
+.linked-photo-code { font-size: 11px; color: var(--text-2); }
+.linked-photo-note { font-size: 11px; color: var(--text-3); font-style: italic; }
+.linked-photo-img { width: 100%; max-height: 160px; object-fit: cover; display: block; }
+
+/* ══════════════════════════════════════════════
+   SI STEP 2 — CHECK SELECTION GRID
+══════════════════════════════════════════════ */
+.si-check-sel-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px; margin-bottom: 24px;
+}
+.si-check-cat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.si-check-cat-header {
+  background: var(--night); color: var(--accent-2);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 8px 10px;
+}
+.si-check-sel-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.12s;
+  font-size: 12px; color: var(--text-2); line-height: 1.4;
+}
+.si-check-sel-item:last-child { border-bottom: none; }
+.si-check-sel-item:hover { background: rgba(196,144,48,0.05); }
+.si-check-sel-item.selected { background: rgba(196,144,48,0.08); }
+.si-check-sel-item input[type=checkbox] { accent-color: var(--accent); margin-top: 2px; flex-shrink: 0; }
+.si-check-done-badge {
+  margin-left: auto; font-size: 10px; font-weight: 700; color: var(--success); flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════
+   SI CHECKS OVERVIEW (Step 1 — after save)
+══════════════════════════════════════════════ */
+.si-checks-overview { display: flex; flex-direction: column; gap: 6px; }
+.si-check-ov-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; transition: border-color 0.12s, background 0.12s;
+}
+.si-check-ov-item:hover { border-color: var(--accent); background: var(--accent-dim); }
+.si-check-cat-tag {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); opacity: 0.7; white-space: nowrap; flex-shrink: 0;
+}
+.si-check-ov-label { flex: 1; font-size: 13px; font-weight: 500; color: var(--text-1); }
+.si-check-ov-status {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--text-3); background: var(--border); border-radius: 10px;
+  padding: 2px 9px; flex-shrink: 0;
+}
+.si-check-ov-status.done { color: var(--success); background: rgba(10,114,90,0.1); }
+
+/* ══════════════════════════════════════════════
+   NON PRESENTE TOGGLE
+══════════════════════════════════════════════ */
+.non-presente-bar {
+  display: flex; align-items: center;
+  padding: 10px 16px; margin-bottom: 18px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.np-toggle {
+  display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
+}
+.np-toggle input[type=checkbox] { display: none; }
+.np-toggle-track {
+  width: 36px; height: 20px; border-radius: 10px;
+  background: #C8D0DC; position: relative;
+  transition: background 0.2s; flex-shrink: 0;
+}
+.np-toggle input:checked + .np-toggle-track { background: #D64545; }
+.np-toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: left 0.2s;
+}
+.np-toggle input:checked + .np-toggle-track .np-toggle-thumb { left: 19px; }
+.np-toggle-label { font-size: 13px; color: var(--text-3); }
+.np-toggle input:checked ~ .np-toggle-label { color: #C03030; font-weight: 600; }
+
+.non-presente-card {
+  display: flex; align-items: center; gap: 18px;
+  padding: 20px 24px; margin-bottom: 18px;
+  background: #F8F0E8; border: 1.5px dashed var(--border-2);
+  border-radius: var(--radius);
+}
+.np-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--night-2); color: var(--accent-2);
+  border: 1px solid rgba(196,144,48,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; flex-shrink: 0;
+}
+.np-message { flex: 1; font-size: 13px; color: var(--text-3); line-height: 1.5; }
+.np-message strong { color: var(--text-1); }
+
+.absent-badge {
+  padding: 4px 10px; border-radius: 12px;
+  background: #FFE8E8; color: #D64545;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.3px;
+}
+
