@@ -133,10 +133,25 @@ function updateFloorPhotoPinNote(floorId, photoIdx, pinIdx, val) {
   if (fl) fl.photos[photoIdx].pins[pinIdx].note = val;
 }
 
+function _updatePhotoBadge(accordionId, count) {
+  const el = document.getElementById(accordionId);
+  if (!el) return;
+  const title = el.querySelector('.photos-section-title');
+  if (!title) return;
+  let badge = title.querySelector('.photos-count-badge');
+  if (count > 0) {
+    if (!badge) { badge = document.createElement('span'); badge.className = 'photos-count-badge'; title.appendChild(badge); }
+    badge.textContent = count;
+  } else {
+    if (badge) badge.remove();
+  }
+}
+
 function renderFloorPhotos(floorId) {
   const fl = getFloor(floorId);
   if (!fl) return;
   _renderPhotoList("si-photos-list", fl.photos, fl.floorplanPins, floorId, "siRemoveFloorPhoto", "siAddFloorPhotoPin");
+  _updatePhotoBadge(`floor-photos-accordion-${floorId}`, fl.photos.length);
 }
 
 // ── Check photos (Step 3) ────────────────────────────────────
@@ -195,15 +210,78 @@ function updateCheckPhotoPinNote(floorId, checkId, photoIdx, pinIdx, val) {
   if (check) check.photos[photoIdx].pins[pinIdx].note = val;
 }
 
+// ── Photo scope filter state ──────────────────────────────────
+let _siPhotoScope = { floorId: null, checkId: null, scope: 'this' };
+
 function renderCheckPhotos(floorId, checkId) {
-  _renderCheckPhotosInline(floorId, checkId);
-  _renderLinkedPhotos(floorId, checkId);
+  // Reset scope to 'this' when navigating to a new check
+  if (_siPhotoScope.floorId !== floorId || _siPhotoScope.checkId !== checkId) {
+    _siPhotoScope = { floorId, checkId, scope: 'this' };
+  }
+  _renderPhotoScopeBar(floorId, checkId, _siPhotoScope.scope);
+  _renderPhotoScopeContent(floorId, checkId, _siPhotoScope.scope);
+  const check = getOrInitCheck(floorId, checkId);
+  _updatePhotoBadge(`check-photos-accordion-${floorId}-${checkId}`, (check?.photos || []).length);
 }
 
-function _renderCheckPhotosInline(floorId, checkId) {
+function siSetPhotoScope(scope) {
+  _siPhotoScope.scope = scope;
+  _renderPhotoScopeBar(_siPhotoScope.floorId, _siPhotoScope.checkId, scope);
+  _renderPhotoScopeContent(_siPhotoScope.floorId, _siPhotoScope.checkId, scope);
+}
+
+function _renderPhotoScopeBar(floorId, checkId, activeScope) {
+  const bar = document.getElementById('si-photo-scope-bar');
+  if (!bar) return;
+  const floor = getFloor(floorId);
+  if (!floor) { bar.innerHTML = ''; return; }
+
+  const opts = [];
+  const thisCheck = floor.checks?.[checkId];
+  opts.push({ scope: 'this', label: 'This Check', count: (thisCheck?.photos || []).length });
+
+  const floorPhotoCount = (floor.photos || []).length;
+  if (floorPhotoCount > 0) {
+    opts.push({ scope: 'floor', label: 'Floor Photos', count: floorPhotoCount });
+  }
+
+  (floor.selectedChecks || []).forEach(cid => {
+    if (cid === checkId) return;
+    const count = (floor.checks?.[cid]?.photos || []).length;
+    if (count === 0) return;
+    const def = _getCheckDef(cid);
+    opts.push({ scope: cid, label: def ? def.label : cid, count });
+  });
+
+  if (opts.length <= 1) { bar.innerHTML = ''; return; }
+
+  bar.innerHTML = `<div class="si-photo-scope-bar">${opts.map(o => `
+    <button class="si-scope-btn${activeScope === o.scope ? ' active' : ''}"
+      onclick="siSetPhotoScope('${o.scope}')">
+      ${o.label}${o.count > 0 ? ` <span class="si-scope-count">${o.count}</span>` : ''}
+    </button>`).join('')}</div>`;
+}
+
+function _renderPhotoScopeContent(floorId, checkId, scope) {
+  const container = document.getElementById('si-photo-scope-content');
+  if (!container) return;
+  const floor = getFloor(floorId);
+  if (!floor) { container.innerHTML = ''; return; }
+
+  if (scope === 'this') {
+    _renderCheckPhotosEditable(container, floorId, checkId);
+  } else if (scope === 'floor') {
+    _renderPhotosReadOnly(container, floor.photos || [], 'Floor Photos');
+  } else {
+    const c = floor.checks?.[scope];
+    const def = _getCheckDef(scope);
+    _renderPhotosReadOnly(container, c?.photos || [], def ? def.label : scope);
+  }
+}
+
+function _renderCheckPhotosEditable(container, floorId, checkId) {
   const check = getOrInitCheck(floorId, checkId);
-  const container = document.getElementById("si-check-photos-list");
-  if (!container || !check) return;
+  if (!check) return;
   if (check.photos.length === 0) {
     container.innerHTML = '<p style="color:var(--text-3);font-size:13px;padding:8px 0">No photos added yet.</p>';
     return;
@@ -242,10 +320,9 @@ function _renderCheckPhotosInline(floorId, checkId) {
                   <button class="btn btn-danger btn-sm" onclick="siRemoveCheckPhotoPin('${floorId}','${checkId}',${i},${pi})">✕</button>
                 </div>`).join("")}
             </div>` : ""}
-        </div>` : '<div class="photo-no-img">📷 No image loaded</div>'}
+        </div>` : '<div class="photo-no-img">No image loaded</div>'}
     </div>`).join("");
 
-  // Attach click-to-pin handlers
   check.photos.forEach((p, i) => {
     if (!p.dataUrl) return;
     const overlay = document.getElementById(`photo-overlay-${scopeId}-${i}`);
@@ -260,48 +337,33 @@ function _renderCheckPhotosInline(floorId, checkId) {
       if (x < 0 || x > 100 || y < 0 || y > 100) return;
       const note = prompt("Add a note for this pin (optional):") ?? "";
       check.photos[i].pins.push({ x, y, note });
-      _renderCheckPhotosInline(floorId, checkId);
+      _renderCheckPhotosEditable(container, floorId, checkId);
     });
   });
 }
 
-function _renderLinkedPhotos(floorId, checkId) {
-  const container = document.getElementById("si-linked-photos-list");
-  if (!container) return;
-  const floor = getFloor(floorId);
-  if (!floor) { container.innerHTML = ""; return; }
-
-  // Find pins that include this check but whose photo belongs to a DIFFERENT check
-  const linkedPins = (floor.checkPins || []).filter(pin =>
-    pin.checkIds.includes(checkId) &&
-    pin.photoRef &&
-    pin.photoRef.checkId !== checkId
-  );
-  if (linkedPins.length === 0) { container.innerHTML = ""; return; }
-
-  const cards = linkedPins.map(pin => {
-    const ownerCheck = floor.checks?.[pin.photoRef.checkId];
-    const photo = (ownerCheck?.photos || []).find(p => p.id === pin.photoRef.photoId);
-    if (!photo) return "";
-    const ownerDef = _getCheckDef(pin.photoRef.checkId);
-    const col = CHECK_COLORS[pin.photoRef.checkId] || '#888';
-    return `<div class="linked-photo-card">
-      <div class="linked-photo-header">
-        <span class="linked-from-badge" style="background:${col}22;color:${col};border-color:${col}33">
-          ⬡ from ${ownerDef ? ownerDef.label : pin.photoRef.checkId}
-        </span>
-        <span class="linked-photo-code">${photo.code || ''}</span>
-        ${pin.note ? `<span class="linked-photo-note">${pin.note}</span>` : ''}
+function _renderPhotosReadOnly(container, photos, scopeLabel) {
+  if (!photos || photos.length === 0) {
+    container.innerHTML = `<p style="color:var(--text-3);font-size:13px;padding:8px 0">No photos in ${scopeLabel}.</p>`;
+    return;
+  }
+  container.innerHTML = photos.map((p, i) => `
+    <div class="photo-card">
+      <div class="photo-card-header" style="gap:6px;padding-bottom:4px">
+        ${p.code ? `<span class="photo-scope-code">${p.code}</span>` : ''}
+        ${p.note ? `<span class="photo-scope-note">${p.note}</span>` : ''}
       </div>
-      ${photo.dataUrl ? `<img src="${photo.dataUrl}" class="linked-photo-img">` : ''}
-    </div>`;
-  }).join("");
-
-  container.innerHTML = `
-    <div class="linked-photos-section">
-      <div class="linked-photos-title">📎 Linked from other checks</div>
-      ${cards}
-    </div>`;
+      ${p.dataUrl ? `
+        <div class="photo-viewer-wrap">
+          <div class="photo-img-wrap">
+            <img src="${p.dataUrl}" class="photo-img" draggable="false" alt="${p.code || 'Photo ' + (i + 1)}">
+            ${p.pins && p.pins.length > 0 ? `<div class="img-pins">${p.pins.map((pin, pi) => `
+              <div class="img-pin" style="left:${pin.x}%;top:${pin.y}%" title="${pin.note || 'Pin ' + (pi + 1)}">
+                <span class="img-pin-num">${pi + 1}</span>
+              </div>`).join('')}</div>` : ''}
+          </div>
+        </div>` : '<div class="photo-no-img">No image loaded</div>'}
+    </div>`).join('');
 }
 
 // ===========================================================

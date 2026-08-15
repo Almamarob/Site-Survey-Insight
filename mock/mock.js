@@ -1,8 +1,5 @@
 function loadMock() {
   const today = new Date().toISOString().split("T")[0];
-  state.projectName = "Stabilimento Industriale XYZ";
-  document.getElementById("project-name-display").textContent =
-    "— " + state.projectName;
   state.location = {
     date: today,
     nrSopralluogo: "3",
@@ -12,6 +9,8 @@ function loadMock() {
     cliente: "XYZ Manufacturing S.p.A.",
     desc: "Three-storey industrial facility with automated warehouse. Activity: manufacturing.",
   };
+  state.projectName = state.location.verbale;
+  document.getElementById("project-name-display").textContent = "— " + state.projectName;
   state.participants = [
     {
       nome: "Eng. Marco Rossi",

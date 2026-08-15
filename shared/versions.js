@@ -224,27 +224,17 @@ function renderGettingStarted() {
           <p>Explore the app with pre-filled sample data.</p>
         </div>`
         }
-        ${
-          hasVersions
-            ? `
-        <div class="gs-card" onclick="navigate('history')">
-          <div class="gs-icon">🕐</div>
-          <h3>Version History</h3>
-          <p>${state.versions.length} version${state.versions.length !== 1 ? "s" : ""} saved for <em>${state.projectName}</em>.</p>
-        </div>`
-            : `
-        <div class="gs-card" onclick="loadMock()">
-          <div class="gs-icon">📂</div>
-          <h3>Load Demo</h3>
-          <p>Explore the app with pre-filled sample data.</p>
-        </div>`
-        }
         <div class="gs-card" onclick="importProject()">
-          <div class="gs-icon">📁</div>
+          <div class="gs-icon">📤</div>
           <h3>Import Project</h3>
           <p>Resume a previously saved project (.json).</p>
         </div>
       </div>
+      ${hasVersions ? `<p style="margin-top:20px;font-size:11px;color:var(--text-3)">
+        <a href="#" onclick="navigate('history');return false" style="color:var(--accent);text-decoration:none;font-weight:600">
+          ${state.versions.length} version${state.versions.length !== 1 ? "s" : ""} saved</a>
+        for <em>${state.projectName}</em>
+      </p>` : ""}
     </div>
   `;
 }

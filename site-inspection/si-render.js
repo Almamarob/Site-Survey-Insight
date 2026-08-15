@@ -150,13 +150,18 @@ function renderStep1(c, floor) {
         </div>
       </div>
 
-      <div class="photos-section">
-        <div class="photos-section-header">
-          <label class="field-label">Photos</label>
-          <button class="btn btn-secondary btn-sm" onclick="siAddFloorPhoto('${id}')">+ Photo</button>
+      <details class="photos-section" id="floor-photos-accordion-${id}">
+        <summary class="photos-section-header">
+          <span class="photos-section-title">
+            Photos
+            ${floor.photos.length > 0 ? `<span class="photos-count-badge">${floor.photos.length}</span>` : ''}
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick="event.preventDefault();event.stopPropagation();document.getElementById('floor-photos-accordion-${id}').open=true;siAddFloorPhoto('${id}')">+ Photo</button>
+        </summary>
+        <div class="photos-section-body">
+          <div id="si-photos-list"></div>
         </div>
-        <div id="si-photos-list"></div>
-      </div>
+      </details>
 
       <div class="form-row cols-1">
         <div class="form-group">
@@ -284,14 +289,19 @@ function renderStep3(c, floor, checkId) {
         </div>
       </div>
 
-      <div class="photos-section">
-        <div class="photos-section-header">
-          <label class="field-label">Photos</label>
-          <button class="btn btn-secondary btn-sm" onclick="siAddCheckPhoto('${id}','${checkId}')">+ Photo</button>
+      <details class="photos-section" id="check-photos-accordion-${id}-${checkId}">
+        <summary class="photos-section-header">
+          <span class="photos-section-title">
+            Photos
+            ${(check.photos || []).length > 0 ? `<span class="photos-count-badge">${(check.photos || []).length}</span>` : ''}
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick="event.preventDefault();event.stopPropagation();document.getElementById('check-photos-accordion-${id}-${checkId}').open=true;siAddCheckPhoto('${id}','${checkId}')">+ Photo</button>
+        </summary>
+        <div class="photos-section-body">
+          <div id="si-photo-scope-bar"></div>
+          <div id="si-photo-scope-content"></div>
         </div>
-        <div id="si-check-photos-list"></div>
-        <div id="si-linked-photos-list"></div>
-      </div>
+      </details>
 
       <div class="form-row cols-1">
         <div class="form-group">
@@ -318,6 +328,55 @@ function renderStep3(c, floor, checkId) {
 // ===========================================================
 // CHECK PLAN PANEL — floor plan with check-specific pins in Step 3
 // ===========================================================
+
+// ── Pin overlap nudge (view-only, never mutates stored x/y) ────
+function _nudgePins(visiblePins, allPins) {
+  if (visiblePins.length < 2) return visiblePins.map((p, i) => ({ ...p, _dx: 0, _dy: 0, _globalIdx: allPins.indexOf(p) }));
+  const mapW = 360 * (800 / 520); // ~554px at max-height 360
+  const mapH = 360;
+  const minDist = 26; // px centre-to-centre
+  const pts = visiblePins.map(p => ({ ...p, _globalIdx: allPins.indexOf(p), _px: p.x * mapW / 100, _py: p.y * mapH / 100, _ox: 0, _oy: 0 }));
+  for (let pass = 0; pass < 12; pass++) {
+    let moved = false;
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const dx = (pts[j]._px + pts[j]._ox) - (pts[i]._px + pts[i]._ox);
+        const dy = (pts[j]._py + pts[j]._oy) - (pts[i]._py + pts[i]._oy);
+        const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        if (dist < minDist) {
+          const push = (minDist - dist) / 2;
+          const nx = dx / dist, ny = dy / dist;
+          pts[i]._ox -= nx * push; pts[i]._oy -= ny * push;
+          pts[j]._ox += nx * push; pts[j]._oy += ny * push;
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+  return pts.map(p => ({ ...p, _dx: p._ox / mapW * 100, _dy: p._oy / mapH * 100 }));
+}
+
+// ── Photo-tag collision: flip overlapping labels above their pin ─
+function _cpResolveTagCollisions(floorId, checkId) {
+  const mapEl = document.getElementById(`cp-map-${floorId}-${checkId}`);
+  if (!mapEl) return;
+  const tags = [...mapEl.querySelectorAll('.cp-pin-photo-tag')];
+  if (tags.length < 2) return;
+  tags.forEach(t => { t.style.top = ''; t.style.bottom = ''; t.style.marginTop = ''; t.style.marginBottom = ''; });
+  const rects = tags.map(t => t.getBoundingClientRect());
+  for (let i = 1; i < tags.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const a = rects[j], b = rects[i];
+      if (b.left < a.right && b.right > a.left && b.top < a.bottom && b.bottom > a.top) {
+        tags[i].style.top = 'auto'; tags[i].style.bottom = '100%';
+        tags[i].style.marginTop = '0'; tags[i].style.marginBottom = '3px';
+        rects[i] = tags[i].getBoundingClientRect();
+        break;
+      }
+    }
+  }
+}
 
 // Per-panel UI state (drop mode, filter, pending pin)
 const checkPlanState = {};
@@ -361,8 +420,10 @@ function renderCheckPlanPanel(floorId, checkId) {
     </button>`;
   }).join('');
 
-  // ── pins on map ─────────────────────────────────────────────
-  const pinsHtml = visiblePins.map((pin, idx) => {
+  // ── pins on map (nudged positions, global numbering) ────────
+  const nudged = _nudgePins(visiblePins, checkPins);
+  const pinsHtml = nudged.map((pin) => {
+    const globalNum = pin._globalIdx + 1; // 1-based global index
     const primaryColor = CHECK_COLORS[pin.checkIds[0]] || '#888';
     let photoCode = '';
     if (pin.photoRef) {
@@ -370,11 +431,11 @@ function renderCheckPlanPanel(floorId, checkId) {
       const lp = (ownerCheck?.photos || []).find((p, i) => (p.id ?? String(i)) === pin.photoRef.photoId);
       photoCode = lp?.code || '';
     }
-    const title = [pin.note || ('Pin ' + (idx + 1)), photoCode].filter(Boolean).join(' · ');
+    const title = [pin.note || ('Pin ' + globalNum), photoCode].filter(Boolean).join(' · ');
     return `<div class="cp-pin" title="${title}"
-      style="left:${pin.x}%;top:${pin.y}%;border-color:${primaryColor};background:${primaryColor}dd"
+      style="left:${pin.x + pin._dx}%;top:${pin.y + pin._dy}%;border-color:${primaryColor};background:${primaryColor}dd"
       onclick="siCpPinClick(event,'${floorId}','${checkId}','${pin.id}')">
-      <span class="cp-pin-num">${idx + 1}</span>
+      <span class="cp-pin-num">${globalNum}</span>
       ${photoCode ? `<span class="cp-pin-photo-tag">${photoCode}</span>` : ''}
     </div>`;
   }).join('');
@@ -422,10 +483,10 @@ function renderCheckPlanPanel(floorId, checkId) {
       </div>
     </div>` : '';
 
-  // ── pin list ──────────────────────────────────────────────
+  // ── pin list (global numbering matches map) ───────────────
   const pinListHtml = checkPins.length === 0 && !st.pendingPin
     ? '<p class="cp-empty">No pins yet. Click "Drop Pin" then click the floor plan to place one.</p>'
-    : checkPins.map((pin, idx) => {
+    : checkPins.map((pin, idx) => {  // idx is global index
         const col = CHECK_COLORS[pin.checkIds[0]] || '#888';
         const checkBadges = pin.checkIds.map(c => {
           const d = _getCheckDef(c);
@@ -501,8 +562,20 @@ function renderCheckPlanPanel(floorId, checkId) {
           style="cursor:${st.dropMode ? 'crosshair' : 'default'};pointer-events:${st.dropMode ? 'all' : 'none'}"></div>
       </div>
       ${pendingHtml}
-      <div class="cp-pin-list">${pinListHtml}</div>
+      <details class="cp-pin-list-accordion" ${checkPins.length > 0 ? 'open' : ''}>
+        <summary class="cp-pin-list-summary">
+          <span class="cp-pin-list-summary-label">
+            <span class="cp-pin-list-chevron">▶</span>
+            Findings &amp; Positions
+          </span>
+          <span class="cp-pin-list-badge">${checkPins.length}</span>
+        </summary>
+        <div class="cp-pin-list">${pinListHtml}</div>
+      </details>
     </div>`;
+
+  // resolve photo-tag label collisions after DOM is ready
+  requestAnimationFrame(() => _cpResolveTagCollisions(floorId, checkId));
 
   // attach click handler for drop mode
   const overlay = document.getElementById(`cp-overlay-${floorId}-${checkId}`);

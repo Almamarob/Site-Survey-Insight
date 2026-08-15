@@ -103,10 +103,11 @@ function renderPreview() {
       if (fl.photos.length > 0) {
         html += `<div class="preview-photo-grid">`;
         fl.photos.forEach(p => {
+          if (!p.dataUrl) return;
           const pinLabel = p.fpPinRef !== null && p.fpPinRef !== undefined
             ? `⬡ ${p.fpPinRef + 1} · ${fl.floorplanPins[p.fpPinRef]?.note || ""}` : null;
           html += `<div class="preview-photo-card">
-            ${p.dataUrl ? `<img src="${p.dataUrl}" class="preview-photo-img" onclick="previewOpenLightbox(this.src)">` : ""}
+            <img src="${p.dataUrl}" class="preview-photo-img" onclick="previewOpenLightbox(this.src)">
             <div class="preview-photo-meta">
               <span class="preview-photo-code">${p.code}</span>
               ${pinLabel ? `<span class="preview-photo-pin">${pinLabel}</span>` : ""}
@@ -137,11 +138,12 @@ function renderPreview() {
                 ${check.notes ? `<span class="k">Notes:</span><span class="v">${check.notes}</span>` : ""}
                 ${check.riverifica ? `<span class="k">Re-inspection:</span><span class="v riverifica-flag">⚠️ REQUIRED</span>` : ""}
               </div>`;
-            if (check.photos?.length > 0) {
+            const checkPhotos = (check.photos || []).filter(p => p.dataUrl);
+            if (checkPhotos.length > 0) {
               html += `<div class="preview-photo-grid">`;
-              check.photos.forEach(p => {
+              checkPhotos.forEach(p => {
                 html += `<div class="preview-photo-card">
-                  ${p.dataUrl ? `<img src="${p.dataUrl}" class="preview-photo-img" onclick="previewOpenLightbox(this.src)">` : ""}
+                  <img src="${p.dataUrl}" class="preview-photo-img" onclick="previewOpenLightbox(this.src)">
                   <div class="preview-photo-meta">
                     <span class="preview-photo-code">${p.code}</span>
                     <span class="preview-photo-note">${p.note}</span>
@@ -183,7 +185,7 @@ function renderPreview() {
 
       // Floor groups: floor plans + group photos
       const fgs = d.floorGroups || {};
-      const fgKeys = Object.keys(fgs).filter(k => fgs[k].floorplanDataUrl || fgs[k].photos.length > 0);
+      const fgKeys = Object.keys(fgs).filter(k => fgs[k].floorplanDataUrl || fgs[k].photos.some(p => p.dataUrl));
       if (fgKeys.length > 0) {
         html += `<div style="margin-top:12px"><strong style="font-size:12px;color:var(--text-2)">Floor Plans &amp; Site Photos</strong></div>`;
         fgKeys.forEach(gName => {
@@ -193,9 +195,10 @@ function renderPreview() {
           if (g.floorplanDataUrl) {
             html += `<img src="${g.floorplanDataUrl}" style="width:100%;max-height:260px;object-fit:contain;border-radius:5px;display:block;margin-bottom:8px">`;
           }
-          if (g.photos.length > 0) {
+          const gPhotos = g.photos.filter(p => p.dataUrl);
+          if (gPhotos.length > 0) {
             html += `<div style="display:flex;flex-wrap:wrap;gap:8px">`;
-            g.photos.forEach(p => {
+            gPhotos.forEach(p => {
               html += `<div style="text-align:center">
                 <img src="${p.dataUrl}" style="width:130px;height:90px;object-fit:cover;border-radius:5px;display:block">
                 ${p.note ? `<span style="font-size:10px;color:var(--text-3)">${p.note}</span>` : ""}
@@ -248,24 +251,87 @@ function updateExportInfo() {
 }
 
 function _imgFmt(dataUrl) {
-  if (!dataUrl || dataUrl.includes("image/svg")) return null;
+  if (!dataUrl) return null;
+  if (dataUrl.includes("image/svg")) return null;
   if (dataUrl.includes("image/png")) return "PNG";
   return "JPEG";
 }
 
-function generatePDF() {
+// Rasterise an SVG data-URL to PNG via an off-screen canvas.
+// Always draws at explicit pixel dimensions so the result is never blank.
+function _rasterizeSvg(svgUrl, fallbackW = 800, fallbackH = 600) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const w = (img.naturalWidth > 0 ? img.naturalWidth : fallbackW);
+      const h = (img.naturalHeight > 0 ? img.naturalHeight : fallbackH);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      try {
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const png = canvas.toDataURL('image/png');
+        // A blank canvas produces a tiny ~68-byte base64 string — treat as failure
+        resolve(png.length > 200 ? png : null);
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = svgUrl;
+  });
+}
+
+// Build a Map<originalUrl, exportableUrl> for every image in floors + PT sections.
+// SVG urls are converted to PNG; other formats pass through unchanged.
+async function _buildImageMap(floors, ptSects) {
+  const map = new Map();
+  const jobs = [];
+
+  const register = url => {
+    if (!url || map.has(url)) return;
+    if (!url.includes('image/svg')) { map.set(url, url); return; }
+    jobs.push(_rasterizeSvg(url).then(png => map.set(url, png || null)));
+  };
+
+  for (const fl of floors) {
+    register(fl.floorplanDataUrl);
+    (fl.photos || []).forEach(p => register(p.dataUrl));
+    Object.values(fl.checks || {}).forEach(c =>
+      (c.photos || []).forEach(p => register(p.dataUrl)));
+  }
+  for (const s of ptSects) {
+    const d = state.plantTests[s.id];
+    if (!d) continue;
+    Object.values(d.floorGroups || {}).forEach(g => {
+      register(g.floorplanDataUrl);
+      (g.photos || []).forEach(p => register(p.dataUrl));
+    });
+    (d.tests || []).forEach(t => register(t.photoDataUrl));
+  }
+
+  await Promise.all(jobs);
+  return map;
+}
+
+async function generatePDF() {
   const { jsPDF } = window.jspdf;
   if (!jsPDF) {
     showToast("jsPDF not available", "error");
     return;
   }
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const l = state.location;
   const o = state.overview;
   const allFloors = state.siteInspection.floors || [];
   const savedFloors = allFloors.filter(f => f.savedFloor);
   const savedPt = PT_SECTIONS.filter(s => state.plantTests[s.id]?.saved);
+
+  // Pre-convert all images (SVG → PNG via canvas) before building the PDF
+  showToast("Preparing images…", "info");
+  const imgMap = await _buildImageMap(savedFloors, savedPt);
+  const px = url => imgMap.get(url) || null; // resolved exportable url
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   const pageW = 210,
     margin = 18,
@@ -340,6 +406,10 @@ function generatePDF() {
     doc.text(label, margin + 3, y + 1);
     doc.setTextColor(30, 41, 59);
     y += 8;
+  }
+
+  function safeAddImage(dataUrl, fmt, x, yPos, w, h) {
+    try { doc.addImage(dataUrl, fmt, x, yPos, w, h); } catch (e) { console.error("PDF addImage failed:", e); }
   }
 
   function kv(key, value) {
@@ -445,20 +515,38 @@ function generatePDF() {
         doc.text("⚠ RE-INSPECTION REQUIRED FOR THIS FLOOR", margin + 4, y);
         doc.setTextColor(30, 41, 59); y += 8;
       }
+      // Floor plan image
+      const fpUrl = px(fl.floorplanDataUrl);
+      if (fpUrl) {
+        const fmt = _imgFmt(fpUrl) || "PNG";
+        const imgW = contentW * 0.75; const imgH = imgW * (520 / 800);
+        checkPage(imgH + 10);
+        doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 58, 92);
+        doc.text("Floor Plan", margin, y); doc.setTextColor(30, 41, 59); y += 4;
+        safeAddImage(fpUrl, fmt, margin, y, imgW, imgH);
+        y += imgH + 6;
+      }
       if (fl.floorplanPins.length > 0) {
         kv("Floor plan pins", fl.floorplanPins.map((p, i) => `(${i + 1}) ${p.note || "—"}`).join(", "));
       }
       if (fl.photos.length > 0) {
-        checkPage(10);
-        doc.setFontSize(8); doc.setFont("helvetica", "bold");
-        doc.text("Floor Photos:", margin, y); y += 6;
-        const wf = [36, 22, 28, 88];
-        tableRow(["Code", "Pin ref.", "Annot.", "Description"], wf, true);
+        const thumbW = 52; const thumbH = 36; const gap = 4;
+        checkPage(thumbH + 20);
+        doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 58, 92);
+        doc.text("Floor Photos", margin, y); doc.setTextColor(30, 41, 59); y += 6;
+        let xp = margin;
         fl.photos.forEach(p => {
-          const pinLabel = p.fpPinRef !== null && p.fpPinRef !== undefined
-            ? `Pin ${p.fpPinRef + 1}${fl.floorplanPins[p.fpPinRef]?.note ? " · " + fl.floorplanPins[p.fpPinRef].note.substring(0, 18) : ""}` : "—";
-          tableRow([p.code, pinLabel, p.pins.length ? p.pins.length + " pin" : "—", p.note], wf);
+          const url = px(p.dataUrl); if (!url) return;
+          const fmt = _imgFmt(url) || "PNG";
+          if (xp + thumbW > margin + contentW) { xp = margin; y += thumbH + 14; checkPage(thumbH + 14); }
+          safeAddImage(url, fmt, xp, y, thumbW, thumbH);
+          doc.setFontSize(6); doc.setFont("helvetica", "bold");
+          doc.text(p.code || "", xp, y + thumbH + 4);
+          doc.setFont("helvetica", "normal");
+          doc.text(String(p.note || "").substring(0, 28), xp, y + thumbH + 8);
+          xp += thumbW + gap;
         });
+        y += thumbH + 14;
       }
       // Compliance checks per floor grouped by category
       if (fl.selectedChecks.length > 0) {
@@ -485,9 +573,21 @@ function generatePDF() {
               doc.setTextColor(30, 41, 59); y += 8;
             }
             if (check.photos?.length > 0) {
-              const wc = [50, 124];
-              tableRow(["Code", "Description"], wc, true);
-              check.photos.forEach(p => tableRow([p.code, p.note], wc));
+              const thumbW = 52; const thumbH = 36; const gap = 4;
+              checkPage(thumbH + 14);
+              let xc = margin;
+              check.photos.forEach(p => {
+                const url = px(p.dataUrl); if (!url) return;
+                const fmt = _imgFmt(url) || "PNG";
+                if (xc + thumbW > margin + contentW) { xc = margin; y += thumbH + 14; checkPage(thumbH + 14); }
+                safeAddImage(url, fmt, xc, y, thumbW, thumbH);
+                doc.setFontSize(6); doc.setFont("helvetica", "bold");
+                doc.text(p.code || "", xc, y + thumbH + 4);
+                doc.setFont("helvetica", "normal");
+                doc.text(String(p.note || "").substring(0, 28), xc, y + thumbH + 8);
+                xc += thumbW + gap;
+              });
+              y += thumbH + 14;
             }
             y += 3;
           });
@@ -520,54 +620,47 @@ function generatePDF() {
       // Floor groups: floor plans + photos
       const fgs = d.floorGroups || {};
       Object.entries(fgs).forEach(([gName, g]) => {
-        if (g.floorplanDataUrl) {
-          const fmt = _imgFmt(g.floorplanDataUrl);
-          if (fmt) {
-            checkPage(80);
-            doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 58, 92);
-            doc.text(`Floor Plan — ${gName}`, margin, y); doc.setTextColor(30, 41, 59); y += 5;
-            const imgW = contentW * 0.75; const imgH = imgW * (520 / 800);
-            checkPage(imgH + 8);
-            doc.addImage(g.floorplanDataUrl, fmt, margin, y, imgW, imgH);
-            y += imgH + 6;
-          }
+        const fpUrl = px(g.floorplanDataUrl);
+        if (fpUrl) {
+          checkPage(80);
+          doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 58, 92);
+          doc.text(`Floor Plan — ${gName}`, margin, y); doc.setTextColor(30, 41, 59); y += 5;
+          const imgW = contentW * 0.75; const imgH = imgW * (520 / 800);
+          checkPage(imgH + 8);
+          safeAddImage(fpUrl, _imgFmt(fpUrl) || "PNG", margin, y, imgW, imgH);
+          y += imgH + 6;
         }
-        if (g.photos.length > 0) {
-          const fmt0 = g.photos.find(p => _imgFmt(p.dataUrl));
-          if (fmt0) {
-            checkPage(50);
-            doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 58, 92);
-            doc.text(`Photos — ${gName}`, margin, y); doc.setTextColor(30, 41, 59); y += 5;
-            const thumbW = 48; const thumbH = 34; const gap = 4;
-            let xp = margin;
-            g.photos.forEach(ph => {
-              const fmt = _imgFmt(ph.dataUrl);
-              if (!fmt) return;
-              if (xp + thumbW > margin + contentW) { xp = margin; y += thumbH + 14; checkPage(thumbH + 14); }
-              doc.addImage(ph.dataUrl, fmt, xp, y, thumbW, thumbH);
-              if (ph.note) {
-                doc.setFontSize(6); doc.setFont("helvetica", "normal");
-                doc.text(String(ph.note).substring(0, 28), xp, y + thumbH + 4);
-              }
-              xp += thumbW + gap;
-            });
-            y += thumbH + 14;
-          }
+        const resolvedPhotos = g.photos.map(ph => ({ ph, url: px(ph.dataUrl) })).filter(x => x.url);
+        if (resolvedPhotos.length > 0) {
+          checkPage(50);
+          doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 58, 92);
+          doc.text(`Photos — ${gName}`, margin, y); doc.setTextColor(30, 41, 59); y += 5;
+          const thumbW = 48; const thumbH = 34; const gap = 4;
+          let xp = margin;
+          resolvedPhotos.forEach(({ ph, url }) => {
+            if (xp + thumbW > margin + contentW) { xp = margin; y += thumbH + 14; checkPage(thumbH + 14); }
+            safeAddImage(url, _imgFmt(url) || "PNG", xp, y, thumbW, thumbH);
+            if (ph.note) {
+              doc.setFontSize(6); doc.setFont("helvetica", "normal");
+              doc.text(String(ph.note).substring(0, 28), xp, y + thumbH + 4);
+            }
+            xp += thumbW + gap;
+          });
+          y += thumbH + 14;
         }
       });
 
       // Individual test evidence photos
-      const testPhotos = (d.tests || []).filter(t => _imgFmt(t.photoDataUrl));
+      const testPhotos = (d.tests || []).map(t => ({ t, url: px(t.photoDataUrl) })).filter(x => x.url);
       if (testPhotos.length > 0) {
         checkPage(50);
         doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 58, 92);
         doc.text("Test Evidence Photos", margin, y); doc.setTextColor(30, 41, 59); y += 5;
         const thumbW = 48; const thumbH = 34; const gap = 4;
         let xtp = margin;
-        testPhotos.forEach(t => {
-          const fmt = _imgFmt(t.photoDataUrl);
+        testPhotos.forEach(({ t, url }) => {
           if (xtp + thumbW > margin + contentW) { xtp = margin; y += thumbH + 14; checkPage(thumbH + 14); }
-          doc.addImage(t.photoDataUrl, fmt, xtp, y, thumbW, thumbH);
+          safeAddImage(url, _imgFmt(url) || "PNG", xtp, y, thumbW, thumbH);
           const label = [t.test, t.photoEvidence].filter(Boolean).join(" — ");
           doc.setFontSize(6); doc.setFont("helvetica", "normal");
           doc.text(String(label).substring(0, 28), xtp, y + thumbH + 4);
@@ -773,11 +866,20 @@ async function generateWord() {
     return arr;
   }
 
+  function _imgType(dataUrl) {
+    if (!dataUrl) return null;
+    if (dataUrl.includes("image/png")) return "png";
+    if (dataUrl.includes("image/gif")) return "gif";
+    return "jpg";
+  }
+
   function addWordImage(dataUrl, w, h) {
-    if (!dataUrl || dataUrl.includes("image/svg")) return null;
+    if (!dataUrl) return null;
+    const type = _imgType(dataUrl);
+    if (!type) return null;
     try {
-      return new Paragraph({ children: [new ImageRun({ data: _dataUrlToUint8(dataUrl), transformation: { width: w, height: h } })] });
-    } catch (e) { return null; }
+      return new Paragraph({ children: [new ImageRun({ data: _dataUrlToUint8(dataUrl), transformation: { width: w, height: h }, type })] });
+    } catch (e) { console.error("addWordImage failed:", e); return null; }
   }
 
   const l = state.location;
@@ -785,6 +887,10 @@ async function generateWord() {
   const allFloorsW = state.siteInspection.floors || [];
   const savedFloorsW = allFloorsW.filter(f => f.savedFloor);
   const savedPt = PT_SECTIONS.filter(s => state.plantTests[s.id]?.saved);
+
+  // Pre-convert SVG images to PNG
+  const wImgMap = await _buildImageMap(savedFloorsW, savedPt);
+  const wpx = url => wImgMap.get(url) || null;
 
   // ── helpers ──────────────────────────────────────────────
   const sp = (before = 0, after = 80) => ({ spacing: { before, after } });
@@ -972,7 +1078,6 @@ async function generateWord() {
       const fLabel = fl.floorLabel || fl.areaCategory || "Floor";
       const fSub = fl.areaCategory && fl.floorLabel ? " — " + fl.areaCategory : "";
 
-      // Floor heading
       children.push(new Paragraph({
         ...sp(240, 80),
         children: [new TextRun({ text: `  ${fLabel}${fSub}  `, size: 24, bold: true, color: "B8922A", shading: { type: ShadingType.CLEAR, fill: "FAF5E8" } })],
@@ -983,22 +1088,30 @@ async function generateWord() {
       if (fl.riverifica) {
         children.push(new Paragraph({ ...sp(60, 60), children: [new TextRun({ text: "⚠ RE-INSPECTION REQUIRED FOR THIS FLOOR", size: 21, bold: true, color: "C07A10" })] }));
       }
+
+      // Floor plan image
+      const wFpUrl = wpx(fl.floorplanDataUrl);
+      if (wFpUrl) {
+        children.push(new Paragraph({ ...sp(80, 20), children: [new TextRun({ text: "Floor Plan", bold: true, size: 20, color: "4C5E74" })] }));
+        const fpImg = addWordImage(wFpUrl, 480, 312);
+        if (fpImg) children.push(fpImg);
+      }
+
       if (fl.floorplanPins.length > 0) {
         children.push(new Paragraph({ ...sp(40, 60), children: [
           new TextRun({ text: "Floor plan pins: ", bold: true, size: 20, color: "4C5E74" }),
           new TextRun({ text: fl.floorplanPins.map((p, i) => `(${i + 1}) ${p.note || "—"}`).join(" · "), size: 20, color: "8899B0" }),
         ]}));
       }
+
+      // Floor photos with images
       if (fl.photos.length > 0) {
         children.push(new Paragraph({ ...sp(80, 40), children: [new TextRun({ text: "Floor Photos", bold: true, size: 20, color: "4C5E74" })] }));
-        children.push(makeTable(
-          ["Code", "Pin ref.", "Description", "Annotations"],
-          fl.photos.map(p => {
-            const pinLabel = p.fpPinRef !== null && p.fpPinRef !== undefined
-              ? `Pin ${p.fpPinRef + 1}${fl.floorplanPins[p.fpPinRef]?.note ? " · " + fl.floorplanPins[p.fpPinRef].note : ""}` : "—";
-            return [p.code, pinLabel, p.note, p.pins.length ? p.pins.map((pp, pi) => `(${pi + 1}) ${pp.note || "—"}`).join(", ") : "—"];
-          }),
-        ));
+        fl.photos.forEach(p => {
+          children.push(new Paragraph({ ...sp(20, 10), children: [new TextRun({ text: `${p.code}  —  ${p.note}`, size: 18, bold: true, color: "4C5E74" })] }));
+          const img = addWordImage(wpx(p.dataUrl), 220, 154);
+          if (img) children.push(img);
+        });
       }
 
       // Compliance checks per category
@@ -1026,7 +1139,11 @@ async function generateWord() {
             children.push(new Paragraph({ ...sp(60, 60), children: [new TextRun({ text: "⚠ RE-INSPECTION REQUIRED", size: 21, bold: true, color: "C07A10" })] }));
           }
           if (check.photos?.length > 0) {
-            children.push(makeTable(["Code", "Description"], check.photos.map(p => [p.code, p.note])));
+            check.photos.forEach(p => {
+              children.push(new Paragraph({ ...sp(20, 10), children: [new TextRun({ text: `${p.code}  —  ${p.note}`, size: 18, bold: true, color: "4C5E74" })] }));
+              const img = addWordImage(wpx(p.dataUrl), 200, 140);
+              if (img) children.push(img);
+            });
           }
         });
       });
@@ -1072,13 +1189,15 @@ async function generateWord() {
       // Floor groups: floor plans + photos
       const fgs = d.floorGroups || {};
       Object.entries(fgs).forEach(([gName, g]) => {
-        if (g.floorplanDataUrl && !g.floorplanDataUrl.includes("svg")) {
+        const wGfp = wpx(g.floorplanDataUrl);
+        if (wGfp) {
           children.push(new Paragraph({ ...sp(120, 40), children: [new TextRun({ text: `Floor Plan — ${gName}`, size: 20, bold: true, color: "4C5E74" })] }));
-          const img = addWordImage(g.floorplanDataUrl, 450, 280);
+          const img = addWordImage(wGfp, 450, 280);
           if (img) children.push(img);
         }
-        g.photos.filter(p => p.dataUrl && !p.dataUrl.includes("svg")).forEach(p => {
-          const img = addWordImage(p.dataUrl, 200, 130);
+        g.photos.forEach(p => {
+          const url = wpx(p.dataUrl); if (!url) return;
+          const img = addWordImage(url, 200, 130);
           if (img) {
             children.push(img);
             if (p.note) children.push(new Paragraph({ ...sp(0, 40), children: [new TextRun({ text: p.note, size: 18, color: "8899B0" })] }));
@@ -1087,13 +1206,13 @@ async function generateWord() {
       });
 
       // Individual test evidence photos
-      const testPhotos = (d.tests || []).filter(t => t.photoDataUrl && !t.photoDataUrl.includes("svg"));
+      const testPhotos = (d.tests || []).filter(t => wpx(t.photoDataUrl));
       if (testPhotos.length > 0) {
         children.push(new Paragraph({ ...sp(80, 40), children: [new TextRun({ text: "Test Evidence Photos", size: 20, bold: true, color: "4C5E74" })] }));
         testPhotos.forEach(t => {
           const label = [t.test, t.photoEvidence].filter(Boolean).join(" — ");
           children.push(new Paragraph({ ...sp(20, 10), children: [new TextRun({ text: label, size: 18, bold: true, color: "4C5E74" })] }));
-          const img = addWordImage(t.photoDataUrl, 220, 150);
+          const img = addWordImage(wpx(t.photoDataUrl), 220, 150);
           if (img) children.push(img);
         });
       }

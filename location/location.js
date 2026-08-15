@@ -108,11 +108,9 @@ function saveLocation() {
     cliente: document.getElementById("loc-cliente").value,
     desc: document.getElementById("loc-desc").value,
   };
-  if (!state.projectName || state.projectName === "New Inspection") {
-    state.projectName = state.location.luogo || "Inspection";
-    document.getElementById("project-name-display").textContent =
-      "— " + state.projectName;
-  }
+  const displayName = state.location.verbale || state.location.luogo || "Inspection";
+  state.projectName = displayName;
+  document.getElementById("project-name-display").textContent = "— " + displayName;
   markNavSaved("location");
   showToast("Location & Participants saved ✓", "success");
 }

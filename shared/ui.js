@@ -13,7 +13,7 @@ function _siOutcomeShort(status) {
   if (status === "Compliant") return "✓";
   if (status === "Non Compliant") return "✗";
   if (status === "Partially Compliant") return "~";
-  if (status === "To be verified") return "—";
+  if (status === "To be verified") return "?";
   return "";
 }
 function _siFloorWorstOutcomeCls(fl) {
@@ -36,7 +36,7 @@ function renderSiSidebarItems() {
   // "+ Add Floor/Zone" button
   const addDiv = document.createElement("div");
   addDiv.style.cssText = "padding:8px 14px 4px";
-  addDiv.innerHTML = `<button class="btn btn-secondary btn-sm" style="width:100%" onclick="siAddNewFloor()">+ Add Floor / Zone</button>`;
+  addDiv.innerHTML = `<button class="sidebar-add-btn" onclick="siAddNewFloor()">+ Add Floor / Zone</button>`;
   group.appendChild(addDiv);
 
   floors.forEach(fl => {
@@ -102,8 +102,8 @@ function renderPtSidebarItems() {
     const el = document.createElement("div");
     const isActive = state.activePtSection === s.id;
     const isSaved = state.plantTests[s.id]?.saved;
-    const outcomeCls = _ptSectionOutcome(s.id);
-    const outcomeLabel = outcomeCls === "co-ok" ? "✓" : outcomeCls === "co-ko" ? "✗" : "—";
+    const outcomeCls = _ptSectionOutcome(s.id) === "co-tbv" ? "co-mid" : _ptSectionOutcome(s.id);
+    const outcomeLabel = outcomeCls === "co-ok" ? "✓" : outcomeCls === "co-ko" ? "✗" : "~";
     el.className =
       "nav-sub-item" + (isActive ? " active" : "") + (isSaved ? " saved" : "");
     el.id = "nav-sub-pt-" + s.id;

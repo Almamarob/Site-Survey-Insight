@@ -75,6 +75,31 @@
 .cp-pending-select { font-size: 12px; padding: 4px 7px; background: var(--input-bg);
   border: 1px solid var(--border); border-radius: 5px; color: var(--text-1); }
 
+/* Pin list accordion */
+.cp-pin-list-accordion { border-top: 1px solid var(--border); }
+.cp-pin-list-accordion::-webkit-details-marker { display: none; }
+.cp-pin-list-summary {
+  display: flex; align-items: center; justify-content: space-between;
+  list-style: none; cursor: pointer; user-select: none;
+  padding: 8px 14px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-2);
+  transition: background 0.12s;
+}
+.cp-pin-list-summary:hover { background: rgba(255,255,255,0.03); }
+.cp-pin-list-summary-label { display: flex; align-items: center; gap: 7px; }
+.cp-pin-list-chevron {
+  font-size: 8px; color: var(--text-3); display: inline-block;
+  transition: transform 0.15s;
+}
+details[open].cp-pin-list-accordion > .cp-pin-list-summary .cp-pin-list-chevron {
+  transform: rotate(90deg);
+}
+.cp-pin-list-badge {
+  font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px;
+  background: var(--accent); color: #fff; line-height: 16px;
+}
+
 /* Pin list */
 .cp-pin-list { padding: 8px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
 .cp-empty { font-size: 12px; color: var(--text-3); padding: 6px 0; }
@@ -97,6 +122,21 @@
 .cp-pin-add-sel, .cp-pin-photo-sel {
   font-size: 11px; padding: 3px 7px; background: var(--input-bg);
   border: 1px solid var(--border); border-radius: 4px; color: var(--text-2);
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
+}
+.cp-pin-item:hover .cp-pin-add-sel,
+.cp-pin-item:focus-within .cp-pin-add-sel,
+.cp-pin-item:hover .cp-pin-photo-sel,
+.cp-pin-item:focus-within .cp-pin-photo-sel {
+  opacity: 1; pointer-events: auto;
+}
+/* Unlink button inside linked photo block */
+.cp-pin-photo > .btn-danger {
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
+}
+.cp-pin-item:hover .cp-pin-photo > .btn-danger,
+.cp-pin-item:focus-within .cp-pin-photo > .btn-danger {
+  opacity: 1; pointer-events: auto;
 }
 /* Photo tag floating below pin dot on the map */
 .cp-pin-photo-tag {
@@ -116,8 +156,16 @@
 .cp-pin-photo-from { font-size: 10px; font-weight: 600; color: var(--accent); }
 .cp-pin-photo-label { font-size: 11px; color: var(--text-2); flex: 1; }
 
-/* Linked photos (cross-referenced) */
-.linked-photos-section { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+/* Linked photos (cross-referenced, collapsible) */
+.linked-photos-details { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px; }
+.linked-photos-summary {
+  font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: 0.05em;
+  cursor: pointer; user-select: none; list-style: none; outline: none;
+}
+.linked-photos-summary::-webkit-details-marker { display: none; }
+.linked-photos-summary::before { content: '▶ '; font-size: 9px; }
+details[open] .linked-photos-summary::before { content: '▼ '; }
+.linked-photos-section { margin-top: 8px; }
 .linked-photos-title { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: 0.05em; margin-bottom: 8px; }
 .linked-photo-card {
   border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
@@ -238,5 +286,38 @@
   padding: 4px 10px; border-radius: 12px;
   background: #FFE8E8; color: #D64545;
   font-size: 12px; font-weight: 700; letter-spacing: 0.3px;
+}
+
+/* ══════════════════════════════════════════════
+   PHOTO SCOPE FILTER BAR
+══════════════════════════════════════════════ */
+.si-photo-scope-bar {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 8px 0 6px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.si-scope-btn {
+  font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-2);
+  cursor: pointer; transition: all 0.12s; white-space: nowrap; display: flex; align-items: center; gap: 5px;
+}
+.si-scope-btn:hover { border-color: var(--accent); color: var(--accent); }
+.si-scope-btn.active {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; font-weight: 700;
+}
+.si-scope-count {
+  font-size: 10px; font-weight: 700;
+  background: rgba(255,255,255,0.25); border-radius: 8px;
+  padding: 0 5px; line-height: 16px;
+}
+.si-scope-btn:not(.active) .si-scope-count {
+  background: var(--border); color: var(--text-2);
+}
+.photo-scope-code {
+  font-size: 12px; font-weight: 700; color: var(--text-1);
+}
+.photo-scope-note {
+  font-size: 12px; color: var(--text-3); font-style: italic;
 }
 
