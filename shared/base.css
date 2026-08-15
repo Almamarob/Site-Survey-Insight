@@ -80,11 +80,17 @@ body {
    SIDEBAR
 ══════════════════════════════════════════════ */
 #sidebar {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
   width: var(--sidebar-w);
   background: var(--night);
-  flex-shrink: 0; overflow-y: auto;
-  padding: 20px 0 32px;
+  overflow-y: auto;
+  padding: calc(var(--header-h) + 20px) 0 32px;
   border-right: 1px solid rgba(196,144,48,0.08);
+  z-index: 50;
+}
+#content {
+  margin-left: var(--sidebar-w);
 }
 .sidebar-section-label {
   color: rgba(196,144,48,0.58); font-size: 9px; font-weight: 700;
