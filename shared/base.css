@@ -43,7 +43,7 @@ body {
   background: var(--night);
   display: flex; align-items: center; padding: 0 28px;
   gap: 16px; flex-shrink: 0;
-  border-bottom: 1px solid rgba(196,144,48,0.12);
+  border-bottom: none;
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
 }
 #header .logo-icon {
@@ -81,7 +81,7 @@ body {
 ══════════════════════════════════════════════ */
 #sidebar {
   width: var(--sidebar-w);
-  background: var(--night-2);
+  background: var(--night);
   flex-shrink: 0; overflow-y: auto;
   padding: 20px 0 32px;
   border-right: 1px solid rgba(196,144,48,0.08);
